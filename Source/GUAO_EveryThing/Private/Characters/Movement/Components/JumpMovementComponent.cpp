@@ -25,6 +25,11 @@ UJumpMovementComponent::UJumpMovementComponent()
 	OwnerJumpPawn = Cast<IJumpMovementPawnInterface>(GetOwner());
 	OwnerPrimitiveComp = OwnerJumpPawn ? OwnerJumpPawn->GetPrimitiveComponent() : nullptr;
 
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		checkf(OwnerJumpPawn && OwnerPrimitiveComp, TEXT("-_- OwnerJumpPawn and OwnerPrimitiveComp must be exists."));
+	}
+
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
@@ -67,7 +72,7 @@ void UJumpMovementComponent::UpdateAgilityAndQuality(float Agility, float Qualit
 
 void UJumpMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
-	if (OwnerPrimitiveComp) { AutoAdjsutRotationPosition(DeltaTime); }
+	AutoAdjsutRotationPosition(DeltaTime);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -77,58 +82,53 @@ void UJumpMovementComponent::AdjustForwardPosition(float AxisValue) { AdjustPosi
 void UJumpMovementComponent::AdjustRightPosition(float AxisValue) { AdjustPosition(!bIsToogleMovementState, false, AxisValue); }
 
 void UJumpMovementComponent::AutoAdjsutRotationPosition(float DeltaTime)
-{
-	if (OwnerPrimitiveComp)
+{	
+	FRotator OwnerRotation = OwnerPrimitiveComp->GetComponentRotation();
+
+	FVector Force = FVector::ZeroVector;
+
+	if (OwnerRotation.Roll > 10.f)
 	{
-		FRotator OwnerRotation = OwnerPrimitiveComp->GetComponentRotation();
-	
-		FVector Force = FVector::ZeroVector;
+		Force += OwnerPrimitiveComp->GetForwardVector() * FMath::Lerp(10.f, OwnerRotation.Roll, 0.3f);
+	}
+	else if (OwnerRotation.Roll < -10.f)
+	{
+		Force += OwnerPrimitiveComp->GetForwardVector() * FMath::Lerp(-10.f, OwnerRotation.Roll, 0.3f);
+	}
 
-		if (OwnerRotation.Roll > 10.f)
-		{
-			Force += OwnerPrimitiveComp->GetForwardVector() * FMath::Lerp(10.f, OwnerRotation.Roll, 0.3f);
-		}
-		else if (OwnerRotation.Roll < -10.f)
-		{
-			Force += OwnerPrimitiveComp->GetForwardVector() * FMath::Lerp(-10.f, OwnerRotation.Roll, 0.3f);
-		}
+	if (OwnerRotation.Pitch > 10.f)
+	{
+		Force += OwnerPrimitiveComp->GetRightVector() * FMath::Lerp(10.f, OwnerRotation.Pitch, 0.3f);
+	}
+	else if (OwnerRotation.Pitch < -10.f)
+	{
+		Force += OwnerPrimitiveComp->GetRightVector() * FMath::Lerp(-10.f, OwnerRotation.Pitch, 0.3f);
+	}
 
-		if (OwnerRotation.Pitch > 10.f)
-		{
-			Force += OwnerPrimitiveComp->GetRightVector() * FMath::Lerp(10.f, OwnerRotation.Pitch, 0.3f);
-		}
-		else if (OwnerRotation.Pitch < -10.f)
-		{
-			Force += OwnerPrimitiveComp->GetRightVector() * FMath::Lerp(-10.f, OwnerRotation.Pitch, 0.3f);
-		}
-
-		if (Force != FVector::ZeroVector)
-		{
-			AddTorqueInRadiansIfHaveEnoughStamina(Force * AdjustRotationForce  * DeltaTime  * AtuoAdjustRotationForceStrength);
-		}
+	if (Force != FVector::ZeroVector)
+	{
+		AddTorqueInRadiansIfHaveEnoughStamina(Force * AdjustRotationForce  * DeltaTime  * AtuoAdjustRotationForceStrength);
 	}
 }
 
 
 void UJumpMovementComponent::AdjustPosition(bool bIsAdjsutLocation, bool bIsForward, float AxisValue)
 {
-	if (!HasAuthority() && IsAutonomousProxy())
+	if (!OwnerGamePawn->HasAuthority() && OwnerGamePawn->Role >= ROLE_AutonomousProxy)
 	{
 		ServerAdjustPosition(bIsAdjsutLocation, bIsForward, AxisValue);
 	}
 		
-	if (OwnerPrimitiveComp)
+	
+	if (bIsAdjsutLocation)
 	{
-		if (bIsAdjsutLocation)
-		{
-			FVector Direction = bIsForward ? OwnerPrimitiveComp->GetForwardVector() : OwnerPrimitiveComp->GetRightVector();
-			AddForceIfHaveEnoughStamina(Direction * AdjustLocationForce * AxisValue);
-		}
-		else
-		{
-			FVector Direction = bIsForward ? OwnerPrimitiveComp->GetRightVector() : -OwnerPrimitiveComp->GetForwardVector();
-			AddTorqueInRadiansIfHaveEnoughStamina(Direction * AdjustRotationForce * AxisValue);
-		}
+		FVector Direction = bIsForward ? OwnerPrimitiveComp->GetForwardVector() : OwnerPrimitiveComp->GetRightVector();
+		AddForceIfHaveEnoughStamina(Direction * AdjustLocationForce * AxisValue);
+	}
+	else
+	{
+		FVector Direction = bIsForward ? OwnerPrimitiveComp->GetRightVector() : -OwnerPrimitiveComp->GetForwardVector();
+		AddTorqueInRadiansIfHaveEnoughStamina(Direction * AdjustRotationForce * AxisValue);
 	}
 }
 
@@ -137,20 +137,18 @@ void UJumpMovementComponent::ServerAdjustPosition_Implementation(bool bIsAdjsutL
 
 void UJumpMovementComponent::RotatePawn(float AxisValue)
 {
-	if (!HasAuthority() && IsAutonomousProxy())
+	if (!OwnerGamePawn->HasAuthority() && OwnerGamePawn->Role >= ROLE_AutonomousProxy)
 	{
 		ServerRotatePawn(AxisValue);
 	}
 	
-	if (OwnerPrimitiveComp)
-	{
-		FVector Impulse = OwnerPrimitiveComp->GetUpVector() * 15000.f;
-		FVector Torque = OwnerPrimitiveComp->GetUpVector() * AdjustPawnRotationForce * AxisValue;
+	
+	FVector Impulse = OwnerPrimitiveComp->GetUpVector() * 15000.f;
+	FVector Torque = OwnerPrimitiveComp->GetUpVector() * AdjustPawnRotationForce * AxisValue;
 
-		if (AddTorqueInRadiansIfHaveEnoughStamina(Torque))
-		{
-			OwnerPrimitiveComp->AddImpulse(Impulse);
-		}
+	if (AddTorqueInRadiansIfHaveEnoughStamina(Torque))
+	{
+		OwnerPrimitiveComp->AddImpulse(Impulse);
 	}
 }
 bool UJumpMovementComponent::ServerRotatePawn_Validate(float AxisValue) { return true; }
@@ -168,12 +166,10 @@ inline void UJumpMovementComponent::JumpMoveToLeft() { SetJumpMoveDirection(fals
 void UJumpMovementComponent::SetJumpMoveDirection(bool bIsForward, bool bIsPositive)
 {
 	bHasMoveDirection = true;
-	if (OwnerPrimitiveComp)
-	{
-		WantedMoveDirection = bIsForward ? OwnerPrimitiveComp->GetForwardVector() : OwnerPrimitiveComp->GetRightVector();
 
-		if (!bIsPositive) { WantedMoveDirection = -WantedMoveDirection; }
-	}
+	WantedMoveDirection = bIsForward ? OwnerPrimitiveComp->GetForwardVector() : OwnerPrimitiveComp->GetRightVector();
+
+	if (!bIsPositive) { WantedMoveDirection = -WantedMoveDirection; }
 }
 
 void UJumpMovementComponent::ClearMoveDirection()
@@ -199,12 +195,12 @@ void UJumpMovementComponent::StopJump()
 
 void UJumpMovementComponent::Jump()
 {
-	if (!HasAuthority() && IsAutonomousProxy())
+	if (!OwnerGamePawn->HasAuthority() && OwnerGamePawn->Role >= ROLE_AutonomousProxy)
 	{
 		ServerJump();
 	}
 
-	if (OwnerPrimitiveComp && bCanJump)
+	if (bCanJump)
 	{		
 		if (AddImpulseIfHaveEnoughStamina(OwnerPrimitiveComp->GetUpVector() * JumpHeightForce))
 		{
@@ -218,12 +214,12 @@ void UJumpMovementComponent::ServerJump_Implementation() { Jump(); }
 
 void UJumpMovementComponent::JumpMove(const FVector& Dircetion)
 {
-	if (!HasAuthority() && IsAutonomousProxy())
+	if (!OwnerGamePawn->HasAuthority() && OwnerGamePawn->Role >= ROLE_AutonomousProxy)
 	{
 		ServerJumpMove(Dircetion);
 	}
 
-	if (OwnerPrimitiveComp && bCanJump)
+	if (bCanJump)
 	{
 		if (AddImpulseIfHaveEnoughStamina(OwnerPrimitiveComp->GetUpVector() * JumpHeightForce + WantedMoveDirection * JumpForwardForce))
 		{

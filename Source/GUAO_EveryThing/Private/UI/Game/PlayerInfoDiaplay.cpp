@@ -5,6 +5,8 @@
 #include "Online/EveryThingPlayerState_Game.h"
 #include "Online/PlayerController_Game.h"
 #include "Characters/GamePawn.h"
+#include "Characters/GamePawnDurabilityComponent.h"
+#include "Characters/GamePawnStaminaComponent.h"
 
 void UPlayerInfoDiaplay::NativeConstruct()
 {
@@ -41,18 +43,24 @@ void UPlayerInfoDiaplay::OnRoleNameUpdate(const FName& RoleName)
 	AGamePawn* OwnerGamePawn = OwnerPC_G ? Cast<AGamePawn>(OwnerPC_G->GetPawn()) : nullptr;
 	if (OwnerGamePawn)
 	{
-		Durability = OwnerGamePawn->GetDurability();
-		Stamina = OwnerGamePawn->GetStamina();
-		MaxDurability = OwnerGamePawn->GetMaxDurability();
-		MaxStamina = OwnerGamePawn->GetMaxStamina();
+		UGamePawnDurabilityComponent* OwnerDurabilityComp = OwnerGamePawn->GetDurabilityComp();
+		UGamePawnStaminaComponent* OwnerStaminaComp = OwnerGamePawn->GetStaminaComp();
+
+		checkf(OwnerDurabilityComp && OwnerStaminaComp, TEXT("-_- DurabilityComp and StaminaComp must be exists."));
+
+		Durability = OwnerDurabilityComp->GetDurability();
+		MaxDurability = OwnerDurabilityComp->GetMaxDurability();
+		OwnerDurabilityComp->OnDurabilityUpdateDelegate.AddUObject(this, &UPlayerInfoDiaplay::OnDurabilityUpdate);
+		OwnerDurabilityComp->OnMaxDurabilityUpdateDelegate.AddUObject(this, &UPlayerInfoDiaplay::OnMaxDurabilityUpdate);
 
 		UpdateDurability(Durability, MaxDurability);
-		UpdateStamina(Stamina, MaxStamina);
 
-		OwnerGamePawn->OnMaxDurabilityUpdateDelegate.AddUObject(this, &UPlayerInfoDiaplay::OnMaxDurabilityUpdate);
-		OwnerGamePawn->OnMaxStaminaUpdateDelegate.AddUObject(this, &UPlayerInfoDiaplay::OnMaxStaminaUpdate);
-		OwnerGamePawn->OnDurabilityUpdateDelegate.AddUObject(this, &UPlayerInfoDiaplay::OnDurabilityUpdate);
-		OwnerGamePawn->OnStaminaUpdateDelegate.AddUObject(this, &UPlayerInfoDiaplay::OnStaminaUpdate);
+		Stamina = OwnerStaminaComp->GetStamina();
+		MaxStamina = OwnerStaminaComp->GetMaxStamina();
+		OwnerStaminaComp->OnStaminaUpdateDelegate.AddUObject(this, &UPlayerInfoDiaplay::OnStaminaUpdate);
+		OwnerStaminaComp->OnMaxStaminaUpdateDelegate.AddUObject(this, &UPlayerInfoDiaplay::OnMaxStaminaUpdate);
+
+		UpdateStamina(Stamina, MaxStamina);
 	}
 }
 

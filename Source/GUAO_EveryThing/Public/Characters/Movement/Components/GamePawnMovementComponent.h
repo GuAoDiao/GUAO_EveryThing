@@ -16,12 +16,6 @@ public:
 	UGamePawnMovementComponent();
 	
 	virtual void RebindInputComp(class UInputComponent* OwnerInputComp) {}
-	//////////////////////////////////////////////////////////////////////////
-	/// Authority
-protected:
-	bool HasAuthority();
-	bool IsAutonomousProxy();
-	bool IsLocalPlayer();
 
 public:
 	virtual void UpdateAgilityAndQuality(float Agility, float Quality, float QualityScale = 1.f);
@@ -42,5 +36,4 @@ protected:
 	bool AddForceAtLocationIfHaveEnoughStamina(const FVector& Force, const FVector& Location);
 	bool AddTorqueInRadiansIfHaveEnoughStamina(const FVector& Torue);
 	bool AddImpulseIfHaveEnoughStamina(const FVector& Impulse);
-
 };

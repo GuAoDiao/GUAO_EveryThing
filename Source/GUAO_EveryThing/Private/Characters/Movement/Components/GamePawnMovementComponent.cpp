@@ -6,6 +6,7 @@
 #include "GameFramework/Controller.h"
 
 #include "Characters/GamePawn.h"
+#include "Characters/GamePawnStaminaComponent.h"
 
 UGamePawnMovementComponent::UGamePawnMovementComponent()
 {
@@ -16,25 +17,12 @@ UGamePawnMovementComponent::UGamePawnMovementComponent()
 	JumpForceScale = 2.f;
 
 	OwnerGamePawn = Cast<AGamePawn>(GetOwner());
-}
 
-//////////////////////////////////////////////////////////////////////////
-/// Authority	
-bool UGamePawnMovementComponent::HasAuthority()
-{
-	return OwnerGamePawn ? OwnerGamePawn->HasAuthority() : false;
+	if (!HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
+	{
+		checkf(OwnerGamePawn, TEXT("-_- Owner Game Pawn muse be exists."));
+	}
 }
-
-bool UGamePawnMovementComponent::IsAutonomousProxy()
-{
-	return OwnerGamePawn ? OwnerGamePawn->Role == ROLE_AutonomousProxy : false;
-}
-bool UGamePawnMovementComponent::IsLocalPlayer()
-{
-	AController* OwnerController = OwnerGamePawn ? OwnerGamePawn->GetController() : nullptr;
-	return OwnerController ? OwnerController->IsLocalController() : false;
-}
-
 
 void UGamePawnMovementComponent::UpdateAgilityAndQuality(float Agility, float Quality, float QualityScale)
 {
@@ -45,12 +33,12 @@ void UGamePawnMovementComponent::UpdateAgilityAndQuality(float Agility, float Qu
 
 bool UGamePawnMovementComponent::AddForceIfHaveEnoughStamina(const FVector& Force)
 {
-	if (OwnerGamePawn && OwnerPrimitiveComp)
+	if (!OwnerGamePawn->GetIsDeath() && OwnerPrimitiveComp)
 	{
-		if (OwnerGamePawn->CanConsumeForce(Force))
+		if (OwnerGamePawn->GetStaminaComp()->CanConsumeForce(Force))
 		{
 			OwnerPrimitiveComp->AddForce(Force, NAME_None, true);
-			OwnerGamePawn->OnConsumeForce(Force);
+			OwnerGamePawn->GetStaminaComp()->OnConsumeForce(Force);
 			return true;
 		}
 	}
@@ -59,12 +47,12 @@ bool UGamePawnMovementComponent::AddForceIfHaveEnoughStamina(const FVector& Forc
 
 bool UGamePawnMovementComponent::AddForceAtLocationIfHaveEnoughStamina(const FVector& Force, const FVector& Location)
 {
-	if (OwnerGamePawn && OwnerPrimitiveComp)
+	if (!OwnerGamePawn->GetIsDeath() && OwnerPrimitiveComp)
 	{
-		if (OwnerGamePawn->CanConsumeForce(Force))
+		if (OwnerGamePawn->GetStaminaComp()->CanConsumeForce(Force))
 		{
 			OwnerPrimitiveComp->AddForceAtLocation(Force, Location);
-			OwnerGamePawn->OnConsumeForce(Force);
+			OwnerGamePawn->GetStaminaComp()->OnConsumeForce(Force);
 			return true;
 		}
 	}
@@ -74,12 +62,12 @@ bool UGamePawnMovementComponent::AddForceAtLocationIfHaveEnoughStamina(const FVe
 
 bool UGamePawnMovementComponent::AddTorqueInRadiansIfHaveEnoughStamina(const FVector& Torue)
 {
-	if (OwnerGamePawn && OwnerPrimitiveComp)
+	if (!OwnerGamePawn->GetIsDeath() && OwnerPrimitiveComp)
 	{
-		if (OwnerGamePawn->CanConsumeTorqueInRadians(Torue))
+		if (OwnerGamePawn->GetStaminaComp()->CanConsumeTorqueInRadians(Torue))
 		{
 			OwnerPrimitiveComp->AddTorqueInRadians(Torue, NAME_None, true);
-			OwnerGamePawn->OnConsumeTorqueInRadians(Torue);
+			OwnerGamePawn->GetStaminaComp()->OnConsumeTorqueInRadians(Torue);
 			return true;
 		}
 	}
@@ -89,12 +77,12 @@ bool UGamePawnMovementComponent::AddTorqueInRadiansIfHaveEnoughStamina(const FVe
 
 bool UGamePawnMovementComponent::AddImpulseIfHaveEnoughStamina(const FVector& Impulse)
 {
-	if (OwnerGamePawn && OwnerPrimitiveComp)
+	if (!OwnerGamePawn->GetIsDeath() && OwnerPrimitiveComp)
 	{
-		if (OwnerGamePawn->CanConsumeImpulse(Impulse))
+		if (OwnerGamePawn->GetStaminaComp()->CanConsumeImpulse(Impulse))
 		{
 			OwnerPrimitiveComp->AddImpulse(Impulse);
-			OwnerGamePawn->OnConsumeImpulse(Impulse);
+			OwnerGamePawn->GetStaminaComp()->OnConsumeImpulse(Impulse);
 			return true;
 		}
 	}

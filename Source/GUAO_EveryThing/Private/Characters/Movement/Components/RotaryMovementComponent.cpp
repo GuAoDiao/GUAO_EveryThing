@@ -26,6 +26,11 @@ URotaryMovementComponent::URotaryMovementComponent()
 	OwnerRotaryPawn = Cast<IRotaryMovementPawnInterface>(GetOwner());
 	OwnerPrimitiveComp = OwnerRotaryPawn ? OwnerRotaryPawn->GetPrimitiveComponent() : nullptr;
 
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		checkf(OwnerRotaryPawn && OwnerPrimitiveComp, TEXT("-_- OwnerRotaryPawn and OwnerPrimitiveComp must be exists."));
+	}
+
 	bWantsToMove = false;
 	WantMoveDirection = FVector::ZeroVector;
 }
@@ -72,7 +77,7 @@ void URotaryMovementComponent::CloseMoveTimer()
 
 void URotaryMovementComponent::MoveTimerImplementation()
 {
-	if (bWantsToMove && OwnerGamePawn)
+	if (bWantsToMove)
 	{
 		FVector ActualDirection = FVector::ZeroVector;
 		if (WantMoveDirection.X != 0.f) { ActualDirection += WantMoveDirection.X * OwnerRotaryPawn->GetActualForwardVector(); }
@@ -124,11 +129,11 @@ void URotaryMovementComponent::UpdateAgilityAndQuality(float Agility, float Qual
 
 void URotaryMovementComponent::MoveForward(float AxisValue)
 {
-	if (OwnerRotaryPawn && AxisValue!= 0.f)
+	if (AxisValue!= 0.f)
 	{
 		WantMoveDirection.X = AxisValue;
 
-		if (!bWantsToMove && GetWorld())
+		if (!bWantsToMove)
 		{
 			bWantsToMove = true;
 
@@ -139,11 +144,11 @@ void URotaryMovementComponent::MoveForward(float AxisValue)
 
 void URotaryMovementComponent::MoveRight(float AxisValue)
 {
-	if (OwnerRotaryPawn && AxisValue != 0.f)
+	if (AxisValue != 0.f)
 	{
 		WantMoveDirection.Y = AxisValue;
 
-		if (!bWantsToMove && GetWorld())
+		if (!bWantsToMove)
 		{
 			bWantsToMove = true;
 
@@ -154,15 +159,12 @@ void URotaryMovementComponent::MoveRight(float AxisValue)
 
 void URotaryMovementComponent::Move(const FVector& Direction, float AxisValue)
 {
-	if (!HasAuthority() && IsAutonomousProxy())
+	if (!OwnerGamePawn->HasAuthority() && OwnerGamePawn->Role >= ROLE_AutonomousProxy)
 	{
 		ServerMove(Direction, AxisValue);
 	}
 
-	if (OwnerPrimitiveComp)
-	{
-		AddForceIfHaveEnoughStamina(Direction * CurrentSpeed * AxisValue);
-	}
+	AddForceIfHaveEnoughStamina(Direction * CurrentSpeed * AxisValue);
 }
 
 bool URotaryMovementComponent::ServerMove_Validate(const FVector& Direction, float AxisValue) { return true; }
@@ -170,29 +172,29 @@ void URotaryMovementComponent::ServerMove_Implementation(const FVector& Directio
 
 void URotaryMovementComponent::MoveToLocation(const FVector& Location, float AxisValue)
 {
-	if (OwnerPrimitiveComp) { Move(UKismetMathLibrary::FindLookAtRotation(OwnerPrimitiveComp->GetComponentLocation(), Location).Vector(), AxisValue); }
+	Move(UKismetMathLibrary::FindLookAtRotation(OwnerPrimitiveComp->GetComponentLocation(), Location).Vector(), AxisValue);
 }
 
 void URotaryMovementComponent::AcceptForceImpulse(const FVector& Location, const FVector& Force)
 {
-	if (!HasAuthority() && IsAutonomousProxy())
+	if (!OwnerGamePawn->HasAuthority() && OwnerGamePawn->Role >= ROLE_AutonomousProxy)
 	{
 		ServerAcceptForceImpulse(Location, Force);
 	}
 
-	if (OwnerPrimitiveComp) { OwnerPrimitiveComp->AddImpulseAtLocation(Force, Location); }
+	OwnerPrimitiveComp->AddImpulseAtLocation(Force, Location);
 }
 bool URotaryMovementComponent::ServerAcceptForceImpulse_Validate(const FVector& Location, const FVector& Force) { return true; }
 void URotaryMovementComponent::ServerAcceptForceImpulse_Implementation(const FVector& Location, const FVector& Force) { AcceptForceImpulse(Location, Force); }
 
 void URotaryMovementComponent::StartJump()
 {
-	if (!HasAuthority() && IsAutonomousProxy())
+	if (!OwnerGamePawn->HasAuthority() && OwnerGamePawn->Role >= ROLE_AutonomousProxy)
 	{
 		ServerStartJump();
 	}
 
-	if (CanJump() && OwnerRotaryPawn && OwnerPrimitiveComp)
+	if (CanJump())
 	{
 		if (AddImpulseIfHaveEnoughStamina(OwnerRotaryPawn->GetActualUpVector() * CurrentJumpForce))
 		{
@@ -205,7 +207,7 @@ void URotaryMovementComponent::ServerStartJump_Implementation() { StartJump(); }
 
 void URotaryMovementComponent::ToogleMovementState()
 {
-	if (!HasAuthority() && IsAutonomousProxy())
+	if (!OwnerGamePawn->HasAuthority() && OwnerGamePawn->Role >= ROLE_AutonomousProxy)
 	{
 		ServerToogleMovementState();
 	}

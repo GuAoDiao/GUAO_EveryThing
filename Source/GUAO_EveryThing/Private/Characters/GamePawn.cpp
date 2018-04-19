@@ -14,6 +14,8 @@
 #include "EveryThingAssetManager.h"
 #include "Online/EveryThingGameMode_Game.h"
 #include "Characters/PropComponent.h"
+#include "Characters/GamePawnDurabilityComponent.h"
+#include "Characters/GamePawnStaminaComponent.h"
 #include "Characters/Form/GamePawnForm.h"
 #include "Characters/Skin/GamePawnSkin.h"
 #include "Characters/Moves/AttackComponent.h"
@@ -45,6 +47,8 @@ AGamePawn::AGamePawn()
 	SetRootComponent(StaticMeshComp);
 
 	PropComp = CreateDefaultSubobject<UPropComponent>("PropComp");
+	DurabilityComp = CreateDefaultSubobject<UGamePawnDurabilityComponent>("DurabilityComp");
+	StaminaComp = CreateDefaultSubobject<UGamePawnStaminaComponent>("StaminaComp");
 
 	MovementComp = nullptr;
 	
@@ -52,8 +56,6 @@ AGamePawn::AGamePawn()
 	OwnerSkillComp = nullptr;
 
 	PrimaryActorTick.bCanEverTick = true;
-
-	CansumeScale = 1.f;
 }
 
 void AGamePawn::OnConstruction(const FTransform& Transform)
@@ -72,15 +74,6 @@ void AGamePawn::PossessedBy(AController* NewController)
 	OnPossessedByControllerDelegate.Broadcast(NewController);
 }
 
-
-void AGamePawn::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-	if (HasAuthority())
-	{
-		ChangeStaminaTick(DeltaTime);
-	}
-}
 
 void AGamePawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
@@ -157,7 +150,7 @@ void AGamePawn::AcceptHitFrom(AActor* OtherActor, FVector NormalInpulse, const F
 
 bool AGamePawn::CanBeSelectedToHit(AActor* Selector) const
 {
-	return !bIsDeath;
+	return bIsDeath;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -173,85 +166,15 @@ void AGamePawn::OnHitImplement(UPrimitiveComponent* HitComp, AActor* OtherActor,
 	if (!bIsDeath) { AcceptHitFrom(OtherActor, NormalInpulse, Hit); }
 }
 
-//////////////////////////////////////////////////////////////////////////
-/// Game Pawn Form And Skin
-
-void AGamePawn::ResetDefaultSkinAndFormFromDataTable()
+float AGamePawn::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-	const FRoleInfo* RoleInfo;
-	if (UEveryThingAssetManager::GetAssetManagerInstance()->GetGamePawnManager()->GetRoleInfoFromName(RoleName, RoleInfo) && RoleInfo)
-	{
-		AllHaveRoleSkinName.AddUnique(RoleInfo->DefaultSkinName);
-		OnAllHaveRoleSkinNameUpdate();
-		ToggleToTargetSkin(RoleInfo->DefaultSkinName);
-
-		AllHaveRoleFormName.AddUnique(RoleInfo->DefaultFormName);
-		OnAllHaveRoleFormNameUpdate();
-		ToggleToTargetForm(RoleInfo->DefaultFormName);
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-/// Stamina
-void AGamePawn::SpendStamina(float value)
-{
-	Stamina -= value;
-
-	if (Stamina >= MaxStamina) { Stamina = MaxStamina; }
-	if (Stamina <= 0.f) { Stamina = 0.f; }
-
-	OnStaminaUpdateDelegate.Broadcast(Stamina);
-}
-
-void AGamePawn::ChangeStaminaTick(float DeltaTime)
-{
-	SpendStamina(-StaminaRecoverRate*DeltaTime);
-}
-
-//////////////////////////////////////////////////////////////////////////
-/// Cure, Damage, Death
-
-void AGamePawn::Healed(AActor* Curer, float HealingValue)
-{
-	ChangeDurability(HealingValue);
-
-	AEveryThingGameState_Game* OwnerETGS_G = Cast<AEveryThingGameState_Game>(GetWorld()->GetGameState());
-	if (OwnerETGS_G) { OwnerETGS_G->OnGamePawnAcceptCure(this, Curer, HealingValue); }
-}
-void AGamePawn::ChangeDurability(float DurabilityOffset)
-{	
-	Durability += DurabilityOffset;
-	if (Durability < 0.f) { Durability = 0.f; }
-	if (Durability > MaxDurability) { Durability = MaxDurability; }
-
-	OnDurabilityUpdateDelegate.Broadcast(Durability);
-}
-
-float AGamePawn::TakeDamage(float DamageAmount, struct FDamageEvent const & DamageEvent, class AController * EventInstigator, AActor * DamageCauser)
-{
-	float FinalDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-	
-	ChangeDurability(-FinalDamage);
-
-	LastDamageCauserActor = DamageCauser;
-		
-	AEveryThingGameState_Game* OwnerETGS_G = Cast<AEveryThingGameState_Game>(GetWorld()->GetGameState());
-	if (OwnerETGS_G) { OwnerETGS_G->OnGamePawnAcceptDamage(this, DamageCauser, FinalDamage); }
-
-	if (Durability == 0.f)
-	{
-		if (OwnerETGS_G) {OwnerETGS_G->OnGamePawnAcceptCriticalDamage(this, DamageCauser);}
-
-		GamePawnDeath();
-	}
-
-	return FinalDamage;
+	return DurabilityComp->TakeDamage(Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser), DamageEvent, EventInstigator, DamageCauser);
 }
 
 void AGamePawn::GamePawnDeath()
 {
 	AEveryThingGameState_Game* OwnerETGS_G = Cast<AEveryThingGameState_Game>(GetWorld()->GetGameState());
-	if (OwnerETGS_G) { OwnerETGS_G->OnGamePawnBeKilled(this, LastDamageCauserActor); };
+	if (OwnerETGS_G) { OwnerETGS_G->OnGamePawnBeKilled(this, DurabilityComp->GetLastDamageCauser()); };
 
 	bIsDeath = true;
 
@@ -294,6 +217,24 @@ void AGamePawn::DelayToDestroy()
 		{
 			Destroy();
 		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+/// Game Pawn Form And Skin
+
+void AGamePawn::ResetDefaultSkinAndFormFromDataTable()
+{
+	const FRoleInfo* RoleInfo;
+	if (UEveryThingAssetManager::GetAssetManagerInstance()->GetGamePawnManager()->GetRoleInfoFromName(RoleName, RoleInfo) && RoleInfo)
+	{
+		AllHaveRoleSkinName.AddUnique(RoleInfo->DefaultSkinName);
+		OnAllHaveRoleSkinNameUpdate();
+		ToggleToTargetSkin(RoleInfo->DefaultSkinName);
+
+		AllHaveRoleFormName.AddUnique(RoleInfo->DefaultFormName);
+		OnAllHaveRoleFormNameUpdate();
+		ToggleToTargetForm(RoleInfo->DefaultFormName);
 	}
 }
 
@@ -456,27 +397,18 @@ void AGamePawn::ResetInfoFromDataTable(const FName& GamePawnName)
 void AGamePawn::SetInfo(const FGamePawnInfo* InInfo)
 {
 	BaseInfo = *InInfo;
-	
-	MaxDurability = InInfo->MaxDurability;
-	Durability = MaxDurability;
-	OnDurabilityUpdate();
-	OnMaxDurabilityUpdate();
 
-	MaxStamina = InInfo->MaxStamina;
-	Stamina = MaxStamina;
-	OnStaminaUpdate();
-	OnMaxStaminaUpdate();
-	
-	StaminaRecoverRate = MaxStamina / 8.f;
+	DurabilityComp->SetMaxDurability(InInfo->MaxDurability);
+	DurabilityComp->SetDurability(InInfo->MaxDurability);
 
+	StaminaComp->SetStamina(InInfo->MaxStamina);
+	StaminaComp->SetMaxStamina(InInfo->MaxStamina);
+	StaminaComp->InitializeConsumeScale(1.f, InInfo->ConsumeForceScale * 0.0001f, InInfo->ConsumeTorqueScale * 0.0000001f, InInfo->ConsumeImpluseScale * 0.0001f);
+	
 	Agility = InInfo->Agility;
 	Quality = InInfo->Quality;
 	QualityScale = InInfo->QualityScale;
-
-	ConsumeForceScale = InInfo->ConsumeForceScale * 0.0001f;
-	ConsumeImpluseScale = InInfo->ConsumeImpluseScale * 0.0001f;;
-	ConsumeTorqueScale = InInfo->ConsumeTorqueScale * 0.0000001f;
-
+	
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		OnAgilityAndQualityChanged();
@@ -516,38 +448,6 @@ void AGamePawn::ResetDamping()
 }
 
 
-//////////////////////////////////////////////////////////////////////////
-/// On Use Force 
-void AGamePawn::OnConsumeForce(const FVector& Force)
-{
-	SpendStamina(GetConsumeForceValue(Force));
-}
-
-void AGamePawn::OnConsumeTorqueInRadians(const FVector& Torque)
-{
-	SpendStamina(GetConsumeTorqueInRadiansValue(Torque));
-}
-
-void AGamePawn::OnConsumeImpulse(const FVector& Impulse)
-{
-	SpendStamina(GetConsumeImpulseValue(Impulse));
-}
-
-bool AGamePawn::CanConsumeForce(const FVector& Force)
-{
-	return !bIsDeath && Stamina > GetConsumeForceValue(Force);
-}
-
-bool AGamePawn::CanConsumeTorqueInRadians(const FVector& Torque)
-{
-	return !bIsDeath && Stamina > GetConsumeTorqueInRadiansValue(Torque);
-}
-
-bool AGamePawn::CanConsumeImpulse(const FVector& Impulse)
-{
-	return !bIsDeath && Stamina > GetConsumeImpulseValue(Impulse);
-}
-
 void AGamePawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -560,12 +460,7 @@ void AGamePawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetim
 
 	DOREPLIFETIME(AGamePawn, HitAbleDisplayName);
 	DOREPLIFETIME(AGamePawn, BaseInfo);
-
-	DOREPLIFETIME(AGamePawn, Durability);
-	DOREPLIFETIME(AGamePawn, MaxDurability);
-	DOREPLIFETIME(AGamePawn, Stamina);
-	DOREPLIFETIME(AGamePawn, MaxStamina);
-
+	
 	DOREPLIFETIME(AGamePawn, Agility);
 	DOREPLIFETIME(AGamePawn, Quality);
 	DOREPLIFETIME(AGamePawn, QualityScale);
