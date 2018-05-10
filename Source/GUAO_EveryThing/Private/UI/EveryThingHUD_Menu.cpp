@@ -19,6 +19,8 @@
 #include "UI/House/HouseRow.h"
 #include "UI/House/HouseCreate.h"
 
+#include "UI/Config/ConfigUI.h"
+
 #include "UI/Menu/LoadingScreen.h"
 #include "UI/Menu/ErrorDialog.h"
 
@@ -103,6 +105,10 @@ void AEveryThingHUD_Menu::StartNewGameUIState(EMenuUIState InGameUIState)
 			break;
 		case EMenuUIState::HouseList:
 			ShowHouseList();
+			break;
+
+		case EMenuUIState::Config:
+			ShowConfigUI();
 			break;
 
 		case EMenuUIState::LoadingScreen:
@@ -219,6 +225,8 @@ void AEveryThingHUD_Menu::ShowStorehouse() { Storehouse = CreateAndDisplayWidget
 void AEveryThingHUD_Menu::ShowHouseMenu() { HouseMenu = CreateAndDisplayWidget<UHouseMenu>(EMenuUIState::HouseMenu, "HouseMenu", HouseMenu); }
 void AEveryThingHUD_Menu::ShowHouseCreate() { HouseCreate = CreateAndDisplayWidget<UHouseCreate>(EMenuUIState::HouseCreate, "HouseCreate", HouseCreate); }
 void AEveryThingHUD_Menu::ShowHouseList() { HouseList = CreateAndDisplayWidget<UHouseList>(EMenuUIState::HouseList, "HouseList", HouseList); }
+
+void AEveryThingHUD_Menu::ShowConfigUI() { ConfigUI = CreateAndDisplayWidget<UConfigUI>(EMenuUIState::Config, "ConfigUI", ConfigUI); }
 
 void AEveryThingHUD_Menu::ShowLoadingScreen() { LoadingScreen = CreateAndDisplayWidget<ULoadingScreen>(EMenuUIState::LoadingScreen, "LoadingScreen", LoadingScreen); }
 void AEveryThingHUD_Menu::ShowErrorDialog() { ErrorDialog = CreateAndDisplayWidget<UErrorDialog>(EMenuUIState::ErrorDialog, "ErrorDialog", ErrorDialog); }

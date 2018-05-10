@@ -19,6 +19,12 @@ void UMainMenu::ArchiveList()
 }
 
 
+void UMainMenu::ConfigUI()
+{
+	AEveryThingHUD_Menu* OwnerMenuHUD = GetOwningPlayer() ? Cast<AEveryThingHUD_Menu>(GetOwningPlayer()->GetHUD()) : nullptr;
+	if (OwnerMenuHUD) { OwnerMenuHUD->ToggleToNewGameUIState(EMenuUIState::Config); }
+}
+
 void UMainMenu::ExitGame()
 {
 	UEveryThingGameInstance* OwnerETGI = GetOwningPlayer() ? Cast<UEveryThingGameInstance>(GetOwningPlayer()->GetGameInstance()) : nullptr;

@@ -23,5 +23,8 @@ public:
 	void ArchiveList();
 
 	UFUNCTION(BlueprintCallable)
+	void ConfigUI();
+
+	UFUNCTION(BlueprintCallable)
 	void ExitGame();
 };

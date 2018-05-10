@@ -47,6 +47,8 @@ class UHouseMenu;
 class UHouseList;
 class UHouseCreate;
 
+class UConfigUI;
+
 class ULoadingScreen;
 class UErrorDialog;
 
@@ -101,6 +103,8 @@ private:
 	void ShowHouseCreate();
 	void ShowHouseList();
 
+	void ShowConfigUI();
+
 	void ShowLoadingScreen();
 	void ShowErrorDialog();
 
@@ -130,6 +134,9 @@ protected:
 	UHouseList* HouseList;
 	UPROPERTY(Transient)
 	UHouseCreate* HouseCreate;
+
+	UPROPERTY(Transient)
+	UConfigUI* ConfigUI;
 
 	UPROPERTY(Transient)
 	ULoadingScreen* LoadingScreen;
