@@ -56,15 +56,14 @@ void APlayerController_Game::RebindInput()
 	InputComponent->AxisBindings.Empty();
 	ResetAxisAndActionMapping();
 
+	InputComponent->BindAxis("Turn", this, &APlayerController_Game::Turn);
+	InputComponent->BindAxis("LookUp", this, &APlayerController_Game::LookUp);
+
 	InputComponent->BindAction("DisplayGameMenu", IE_Pressed, this, &APlayerController_Game::DisplayGameMenu);
 	InputComponent->BindAction("FocusToChatWindow", IE_Pressed, this, &APlayerController_Game::FocusToChatWindow);
 	
 	InputComponent->BindAction("ToggleScoreBoard", IE_Pressed, this, &APlayerController_Game::DisplayScoreBoard);
 	InputComponent->BindAction("ToggleScoreBoard", IE_Released, this, &APlayerController_Game::RemoveScoreBoard);
-
-
-	InputComponent->BindAxis("Turn", this, &APlayerController_Game::Turn);
-	InputComponent->BindAxis("LookUp", this, &APlayerController_Game::LookUp);
 
 	InputComponent->BindAction("TogglePawn", IE_Pressed, this, &APlayerController_Game::StartToggleRole);
 	InputComponent->BindAction("TogglePawn", IE_Released, this, &APlayerController_Game::StopToggleRole);
