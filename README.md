@@ -10,8 +10,7 @@
 
 #### **这是原小组合作的项目,现在为个人项目**
 
-CSDN博客:https://blog.csdn.net/qq_33017259
-会有一些项目开发经验.
+开发经验分享:https://blog.csdn.net/qq_33017259/article/category/7670385
 
 ##### **游戏模块及功能**
 
